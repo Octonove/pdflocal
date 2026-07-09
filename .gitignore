@@ -1,0 +1,17 @@
+# Entornos y compilacion
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Salida de PyInstaller / Inno Setup
+/build/PDFLocal/
+/build/*.log
+/build/icon_preview.png
+/dist/
+/installer/
+
+# Artefactos de pruebas
+/out/
+test_minimal.pdf
