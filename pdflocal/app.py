@@ -159,7 +159,7 @@ class App(tk.Tk):
         ent.pack(side="left", fill="x", expand=True)
         ent.bind("<Return>", lambda e: self._ask())
         ttk.Button(q, text="Preguntar", style="Primary.TButton", command=self._ask).pack(side="left", padx=(6, 0))
-        ttk.Button(q, text="IA (Ollama)…", command=self._ollama_dialog).pack(side="left", padx=(6, 0))
+        ttk.Button(q, text="Configurar IA…", command=self._ollama_dialog).pack(side="left", padx=(6, 0))
         self.chat_out = tk.Text(tab, wrap="word", font=(theme.FONT, 10), bg=theme.WHITE,
                                 fg=theme.TEXT, relief="flat", padx=10, pady=8)
         sb = ttk.Scrollbar(tab, command=self.chat_out.yview)
@@ -754,95 +754,21 @@ class App(tk.Tk):
 
     # -------------------------------------------------------------- Ollama
     def _refresh_chat_ia(self) -> None:
-        if llm.available():
-            mdl = self.cfg.ollama_model or llm.default_model() or "?"
-            emb = llm.default_embed_model()
-            extra = " + embeddings" if emb else " (sin modelo de embeddings)"
-            self.lbl_chat_ia.config(text=f"✓ Ollama: {mdl}{extra}")
-        else:
-            self.lbl_chat_ia.config(text="Sin Ollama: busqueda por palabras")
+        from octonove_core.ai_dialog import status_text
+        self.lbl_chat_ia.config(text=status_text())
 
     def _ollama_dialog(self) -> None:
-        win = tk.Toplevel(self)
-        theme.center_window(win)
-        win.title("Configurar IA local (Ollama)")
-        win.configure(bg=theme.BG)
-        win.transient(self); win.resizable(False, False)
-        outer = ttk.Frame(win, padding=18); outer.pack(fill="both", expand=True)
-        ttk.Label(outer, text="IA local opcional con Ollama", style="H.TLabel").pack(anchor="w")
-        ttk.Label(outer, text="Con Ollama, el chat redacta respuestas y cita paginas. Es gratis,\n"
-                  "opcional y todo ocurre en tu PC.", style="Muted.TLabel",
-                  justify="left").pack(anchor="w", pady=(2, 10))
-        ram = llm.system_ram_gb()
-        gpu = llm.has_gpu()
-        rec_model, size, motivo = llm.recommend_model(ram, gpu)
-        info = ttk.LabelFrame(outer, text="Tu equipo", padding=10); info.pack(fill="x")
-        ttk.Label(info, text=f"RAM: {ram:.0f} GB · GPU NVIDIA: {'si' if gpu else 'no detectada'}",
-                  style="CardMuted.TLabel").pack(anchor="w")
-        ttk.Label(info, text=f"Recomendado: {rec_model} ({size}) — {motivo}",
-                  style="CardMuted.TLabel", justify="left", wraplength=380).pack(anchor="w", pady=(4, 0))
+        # Dialogo de IA UNIFICADO de la suite: Ollama local (gratis) o una API
+        # potente (OpenAI/Gemini/Anthropic). Se configura una vez para las 5 apps.
+        # (Los embeddings para la busqueda semantica siguen autodetectandose de
+        # Ollama si esta presente, aunque el chat use un proveedor de nube.)
+        from octonove_core.ai_dialog import show_ai_dialog
 
-        body = ttk.Frame(outer); body.pack(fill="x")
-
-        def render():
-            for w in body.winfo_children():
-                w.destroy()
-            # sondeo con mas margen que el de la etiqueta (Ollama recien arrancado tarda)
-            mods = llm.list_models(timeout=5.0)
-            if mods:
-                ttk.Label(body, text="Modelo para el chat:", style="H.TLabel").pack(anchor="w", pady=(12, 2))
-                chat_models = [m for m in mods if "embed" not in m.lower()] or mods
-                var = tk.StringVar(value=self.cfg.ollama_model if self.cfg.ollama_model in chat_models
-                                   else chat_models[0])
-                ttk.Combobox(body, textvariable=var, values=chat_models,
-                             state="readonly", width=34).pack(anchor="w")
-                ttk.Label(body, text="Modelo de embeddings (busqueda semantica, opcional):",
-                          style="H.TLabel").pack(anchor="w", pady=(10, 2))
-                evar = tk.StringVar(value=self.cfg.ollama_embed_model or "")
-                ttk.Combobox(body, textvariable=evar, values=[""] + mods, state="readonly",
-                             width=34).pack(anchor="w")
-                ttk.Label(body, text="Consejo: 'ollama pull nomic-embed-text' mejora la busqueda.",
-                          style="Muted.TLabel").pack(anchor="w", pady=(4, 0))
-
-                def save_model():
-                    # Orden correcto: primero limpiar la cache, LUEGO fijar el modelo
-                    # elegido (al reves se borraba la seleccion: era el bug de 'no se activa').
-                    llm.reset_cache()
-                    self.cfg.ollama_model = var.get()
-                    self.cfg.ollama_embed_model = evar.get()
-                    save_config(self.cfg)
-                    llm.set_model(var.get() or None)
-                    self.chat = None
-                    self._refresh_chat_ia()
-                    self._set_status(f"IA activada: {var.get()}")
-                    win.destroy()
-                ttk.Button(body, text="Guardar y activar", style="Primary.TButton",
-                           command=save_model).pack(anchor="e", pady=(12, 0))
-            else:
-                guide = ttk.LabelFrame(body, text="Como activarla (5 min, una vez)", padding=10)
-                guide.pack(fill="x", pady=(12, 0))
-                ttk.Label(guide, text="1. Descarga Ollama gratis en ollama.com e instalalo.\n"
-                          "2. Abre una terminal (Windows + 'cmd').\n"
-                          "3. Pega este comando (descarga el modelo recomendado):",
-                          style="CardMuted.TLabel", justify="left").pack(anchor="w")
-                cmd = f"ollama run {rec_model}"
-                row = ttk.Frame(guide); row.pack(fill="x", pady=(2, 0))
-                ent = ttk.Entry(row, width=30); ent.insert(0, cmd); ent.configure(state="readonly")
-                ent.pack(side="left")
-
-                def copy_cmd():
-                    self.clipboard_clear(); self.clipboard_append(cmd)
-                    self._set_status("Comando copiado.")
-                ttk.Button(row, text="Copiar", command=copy_cmd).pack(side="left", padx=6)
-                ttk.Label(guide, text="4. Cuando termine, pulsa 'Probar conexion' aqui debajo.",
-                          style="CardMuted.TLabel").pack(anchor="w", pady=(6, 0))
-                ttk.Button(guide, text="Abrir ollama.com",
-                           command=lambda: webbrowser.open("https://ollama.com")).pack(anchor="w", pady=(8, 0))
-
-        ttk.Button(outer, text="🔄 Probar conexion / Actualizar", command=render).pack(
-            anchor="w", pady=(12, 0))
-        render()
-        self._modal(win)
+        def _saved():
+            self.chat = None
+            self._refresh_chat_ia()
+            self._set_status("IA configurada.")
+        show_ai_dialog(self, on_saved=_saved)
 
     # -------------------------------------------------------------- varios
     def _first_run_check(self) -> None:
