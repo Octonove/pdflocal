@@ -2,6 +2,16 @@
 
 Caja de herramientas **PDF** para **Windows**, **100% local**: tus documentos nunca salen de tu PC.
 
+## ⬇️ Descargar (Windows 10/11)
+
+### ➡️ [**Descargar PDFLocal (instalador .exe)**](https://github.com/Octonove/pdflocal/releases/latest/download/PDFLocal-Setup.exe)
+
+Descarga **directa** del instalador, sin registro. También puedes ver la [última versión y notas](https://github.com/Octonove/pdflocal/releases/latest).
+
+> Si Windows muestra *"Windows protegió tu PC"* (es normal en programas nuevos sin firma): pulsa **Más información → Ejecutar de todas formas**. Se instala sin permisos de administrador.
+
+---
+
 ## Funciones
 
 - **Páginas**: unir PDFs, dividir, extraer/eliminar páginas, rotar, reordenar.
