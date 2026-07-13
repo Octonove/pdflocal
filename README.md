@@ -15,7 +15,8 @@ Descarga **directa** del instalador, sin registro. También puedes ver la [últi
 ## Funciones
 
 - **Páginas**: unir PDFs, dividir, extraer/eliminar páginas, rotar, reordenar.
-- **Convertir**: PDF → imágenes, imágenes → PDF, comprimir.
+- **Convertir**: PDF → imágenes, imágenes → PDF.
+- **Comprimir** con 3 niveles (ligera/media/fuerte): remuestrea y recomprime las imágenes — ahorros reales del 80-95% en PDFs escaneados o de diseño; nunca deja el archivo más grande que el original.
 - **Proteger**: cifrar/descifrar con contraseña, marca de agua, sello de imagen.
 - **Firma digital** (PAdES/PKCS#7 con pyHanko): con archivo `.p12/.pfx` o directamente con un **certificado del almacén de Windows** (la clave nunca sale del equipo); verificación de firmas.
 - **Texto**: extraer texto, OCR local.

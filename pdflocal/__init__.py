@@ -9,4 +9,4 @@ nada: la alternativa privada a Adobe Acrobat y a las webs de PDF.
 from __future__ import annotations
 
 APP_NAME = "PDFLocal"
-APP_VERSION = "1.0.0"   # fuente unica de version: build-installer.ps1 la inyecta al .iss
+APP_VERSION = "1.1.0"   # fuente unica de version: build-installer.ps1 la inyecta al .iss

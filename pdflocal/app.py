@@ -287,6 +287,8 @@ class App(tk.Tk):
         fn()
 
     def _run_async(self, work, on_done, busy_msg: str) -> None:
+        if self._busy:      # el guard de _tool no cubre los dialogos previos:
+            return          # el teclado puede reinvocar una herramienta abierta
         self._busy = True
         self._set_status(busy_msg)
         self.pb.start(12)
@@ -396,17 +398,67 @@ class App(tk.Tk):
         self._run_async(lambda: pdfops.rotate(self.current_pdf, out, deg, rng or None),
                         self._done_toast, "Rotando…")
 
+    def _ask_nivel_compresion(self) -> str | None:
+        """Dialogo modal con los 3 niveles de compresion. None si cancela."""
+        dlg = tk.Toplevel(self)
+        dlg.title("Comprimir PDF")
+        dlg.transient(self)
+        dlg.resizable(False, False)
+        var = tk.StringVar(value="media")
+        ttk.Label(dlg, text="Nivel de compresion:",
+                  font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=16, pady=(14, 6))
+        opciones = (
+            ("ligera", "Ligera", "maxima calidad, para imprimir (ahorro menor)"),
+            ("media", "Media", "equilibrio calidad/tamano (recomendada)"),
+            ("fuerte", "Fuerte", "maximo ahorro, para email o web"),
+        )
+        primero = None
+        for key, titulo, desc in opciones:
+            rb = ttk.Radiobutton(dlg, text=f"{titulo} — {desc}", value=key,
+                                 variable=var)
+            rb.pack(anchor="w", padx=24, pady=2)
+            primero = primero or rb
+        res: dict = {"v": None}
+        fila = ttk.Frame(dlg)
+        fila.pack(pady=(12, 14))
+
+        def ok():
+            res["v"] = var.get()
+            dlg.destroy()
+        ttk.Button(fila, text="Comprimir", command=ok).pack(side="left", padx=6)
+        ttk.Button(fila, text="Cancelar", command=dlg.destroy).pack(side="left", padx=6)
+        self._modal(dlg)
+        # el grab de Tk solo bloquea el PUNTERO: sin mover el foco al dialogo,
+        # Espacio sigue llegando al boton de la ventana principal y REABRE la
+        # herramienta (dos dialogos, dos hilos sobre el mismo archivo)
+        if primero is not None:
+            primero.focus_set()
+        dlg.wait_window()
+        return res["v"]
+
     def _t_compress(self) -> None:
+        nivel = self._ask_nivel_compresion()
+        if not nivel or self._busy:   # re-check: pudo abrirse otra instancia
+            return                    # mientras este dialogo esperaba
         out = self._out(f"{self._stem()}_comprimido.pdf")
 
+        def fmt(b):
+            return f"{b / 1e6:.1f} MB" if b >= 1e6 else f"{b / 1e3:.0f} KB"
+
         def done(res):
-            self._set_status(f"Comprimido: ahorro {res.get('ahorro_pct', 0)}%")
-            mb = lambda b: f"{b / 1e6:.1f} MB"
-            messagebox.showinfo(APP_NAME, f"Comprimido.\nAntes: {mb(res['antes'])}\n"
-                                f"Despues: {mb(res['despues'])}\nAhorro: {res['ahorro_pct']}%\n\n{out}")
+            self._set_status(f"Comprimido ({res.get('nivel', nivel)}): "
+                             f"ahorro {res.get('ahorro_pct', 0)}%")
+            extra = ("" if res.get("ahorro_pct", 0) > 0 else
+                     "\n\nEste PDF ya estaba optimizado: se conservo el original "
+                     "(nunca se genera un archivo mas grande).")
+            messagebox.showinfo(APP_NAME, f"Comprimido (nivel {res.get('nivel', nivel)}).\n"
+                                f"Antes: {fmt(res['antes'])}\n"
+                                f"Despues: {fmt(res['despues'])}\n"
+                                f"Ahorro: {res['ahorro_pct']}%{extra}\n\n{out}")
             if messagebox.askyesno(APP_NAME, "Abrir la carpeta?"):
                 self._open_folder()
-        self._run_async(lambda: pdfops.compress(self.current_pdf, out), done, "Comprimiendo…")
+        self._run_async(lambda: pdfops.compress(self.current_pdf, out, nivel),
+                        done, "Comprimiendo…")
 
     def _t_encrypt(self) -> None:
         pw = simpledialog.askstring(APP_NAME, "Contrasena para abrir el PDF:",

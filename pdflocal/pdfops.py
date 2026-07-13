@@ -261,8 +261,23 @@ def _write(writer, out_path: str) -> None:
 
 
 # ----------------------------------------------------------- fitz (PyMuPDF)
-def compress(path: str, out_path: str) -> dict:
+# Niveles de compresion: a que DPI se remuestrean las imagenes y con que
+# calidad JPEG se recomprimen. El peso de un PDF escaneado o de diseno esta
+# casi entero en las imagenes: solo deflate (lo de antes) ahorraba ~0%.
+NIVELES_COMPRESION = {
+    "ligera": {"dpi": 220, "quality": 80},   # maxima calidad (imprimir)
+    "media":  {"dpi": 150, "quality": 65},   # equilibrio (recomendado)
+    "fuerte": {"dpi": 96,  "quality": 45},   # maximo ahorro (email/web)
+}
+
+
+def compress(path: str, out_path: str, nivel: str = "media") -> dict:
+    """Comprime remuestreando y recomprimiendo las imagenes segun `nivel`
+    (ligera/media/fuerte) y compactando streams/fuentes. Nunca deja el archivo
+    mas grande que el original: si no mejora, copia el original tal cual."""
     import fitz
+    nivel = nivel if nivel in NIVELES_COMPRESION else "media"   # normalizar:
+    params = NIVELES_COMPRESION[nivel]      # el dict devuelto refleja lo APLICADO
     try:
         doc = fitz.open(path)
     except Exception as exc:  # noqa: BLE001
@@ -271,10 +286,31 @@ def compress(path: str, out_path: str) -> dict:
         if doc.needs_pass:
             raise PdfError("El PDF esta protegido; quita la contrasena primero.")
         before = Path(path).stat().st_size
+        try:
+            # Remuestrea toda imagen por encima del DPI objetivo y recomprime
+            # (JPEG con la calidad del nivel). Es donde esta el ahorro real.
+            # OJO: rewrite_images exige dpi_target ESTRICTAMENTE menor que
+            # dpi_threshold (de ahi el +1).
+            doc.rewrite_images(dpi_threshold=params["dpi"] + 1, dpi_target=params["dpi"],
+                               quality=params["quality"], lossy=True, lossless=True,
+                               bitonal=True, color=True, gray=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("rewrite_images fallo (%s); sigo solo con streams.", exc)
+        try:
+            doc.subset_fonts()   # recorta fuentes embebidas (requiere fontTools)
+        except Exception:  # noqa: BLE001
+            pass
+        # PDF_ENCRYPT_KEEP: conserva el cifrado/permisos de PDFs protegidos
+        # solo con contrasena de propietario (abren con needs_pass=False)
         doc.save(out_path, garbage=4, deflate=True, deflate_images=True,
-                 deflate_fonts=True, clean=True)
+                 deflate_fonts=True, clean=True,
+                 encryption=fitz.PDF_ENCRYPT_KEEP)
         after = Path(out_path).stat().st_size
-        return {"antes": before, "despues": after,
+        if after >= before:
+            import shutil
+            shutil.copyfile(path, out_path)
+            after = Path(out_path).stat().st_size
+        return {"antes": before, "despues": after, "nivel": nivel,
                 "ahorro_pct": (0 if before == 0 else round(100 * (before - after) / before, 1))}
     except PdfError:
         raise
@@ -365,22 +401,79 @@ def page_text_chunks(path: str) -> list[dict]:
         doc.close()
 
 
+def _fuente_marca(text: str):
+    """(kwargs de insercion, medidor_de_ancho) con una fuente que CUBRA el
+    texto. helv (Base-14) solo tiene Latin-1: con cirilico/CJK/emoji dibujaria
+    bullets '···' en silencio, asi que se busca una fuente de Windows con los
+    glifos necesarios; si ninguna cubre, error claro en vez de corromper."""
+    import os
+    import fitz
+    try:
+        text.encode("latin-1")
+        return ({"fontname": "helv"},
+                lambda fs: fitz.get_text_length(text, fontname="helv", fontsize=fs))
+    except UnicodeEncodeError:
+        pass
+    fonts_dir = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+    for nombre in ("segoeui.ttf", "arial.ttf", "msyh.ttc", "simsun.ttc",
+                   "meiryo.ttc", "malgun.ttf", "yugothm.ttc", "seguiemj.ttf"):
+        f = fonts_dir / nombre
+        if not f.is_file():
+            continue
+        try:
+            font = fitz.Font(fontfile=str(f))
+        except Exception:  # noqa: BLE001
+            continue
+        if all(font.has_glyph(ord(c)) for c in text if not c.isspace()):
+            return ({"fontname": "marcadeagua", "fontfile": str(f)},
+                    lambda fs, _f=font: _f.text_length(text, fontsize=fs))
+    raise PdfError("El texto de la marca contiene caracteres que las fuentes "
+                   "disponibles no cubren; usa un texto mas sencillo.")
+
+
 def watermark(path: str, out_path: str, text: str, *, opacity: float = 0.18,
               fontsize: int = 48) -> str:
+    """Marca de agua centrada en TODAS las paginas.
+
+    Usa insert_text con tamano auto-ajustado al ancho de cada pagina.
+    (El insert_textbox anterior, con una caja de alto fijo, DESCARTABA el texto
+    EN SILENCIO cuando no cabia -portadas de otro tamano, paginas apaisadas o
+    rotadas, textos largos-, por lo que la marca 'desaparecia' en esas paginas.)
+
+    Paginas ROTADAS: insert_text ya interpreta el punto en coordenadas
+    VISUALES y dibuja horizontal compensando la rotacion (verificado con
+    /Rotate 90/180/270). NO usar remove_rotation: corrompe links, anotaciones
+    y el cropbox de las paginas rotadas.
+    """
     import fitz
-    if not text.strip():
+    text = " ".join(text.split())
+    if not text:
         raise PdfError("Escribe el texto de la marca de agua.")
+    kwargs_fuente, medir = _fuente_marca(text)
     doc = fitz.open(path)
     if doc.needs_pass:
         raise PdfError("El PDF esta protegido; quita la contrasena primero.")
     try:
         for page in doc:
-            rect = page.rect
-            page.insert_textbox(
-                fitz.Rect(0, rect.height / 2 - 60, rect.width, rect.height / 2 + 60),
-                text, fontsize=fontsize, color=(0.5, 0.5, 0.5), align=1,
-                rotate=0, fill_opacity=opacity, overlay=True)
-        doc.save(out_path, garbage=3, deflate=True)
+            r = page.rect                     # rect visual (rotacion aplicada)
+            fs = float(fontsize)
+            ancho = medir(fs)
+            max_w = r.width * 0.86
+            if ancho > max_w:
+                # auto-encoger hasta 4pt; solo un texto absurdamente largo en
+                # una pagina minuscula puede llegar a desbordar los bordes
+                fs = max(4.0, fs * max_w / ancho)
+                ancho = medir(fs)
+            cx = (r.x0 + r.x1) / 2
+            cy = (r.y0 + r.y1) / 2
+            baseline = fitz.Point(cx - ancho / 2, cy + fs * 0.35)
+            page.insert_text(baseline, text, fontsize=fs,
+                             color=(0.5, 0.5, 0.5), fill_opacity=opacity,
+                             overlay=True, **kwargs_fuente)
+        # PDF_ENCRYPT_KEEP: un PDF con contrasena solo de propietario abre con
+        # needs_pass=False; sin esto la salida perderia el cifrado EN SILENCIO
+        doc.save(out_path, garbage=3, deflate=True,
+                 encryption=fitz.PDF_ENCRYPT_KEEP)
     finally:
         doc.close()
     return out_path
