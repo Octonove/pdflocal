@@ -427,6 +427,7 @@ class App(tk.Tk):
             dlg.destroy()
         ttk.Button(fila, text="Comprimir", command=ok).pack(side="left", padx=6)
         ttk.Button(fila, text="Cancelar", command=dlg.destroy).pack(side="left", padx=6)
+        theme.center_window(dlg)   # sin esto el gestor la suelta en una esquina
         self._modal(dlg)
         # el grab de Tk solo bloquea el PUNTERO: sin mover el foco al dialogo,
         # Espacio sigue llegando al boton de la ventana principal y REABRE la
