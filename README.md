@@ -1,47 +1,54 @@
 # PDFLocal
 
-Caja de herramientas **PDF** para **Windows**, **100% local**: tus documentos nunca salen de tu PC.
+[![license](https://img.shields.io/github/license/Octonove/pdflocal)](LICENSE)
+[![release](https://img.shields.io/github/v/release/Octonove/pdflocal)](https://github.com/Octonove/pdflocal/releases/latest)
+[![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-1E3A5F)](https://github.com/Octonove/pdflocal/releases/latest)
 
-## ⬇️ Descargar (Windows 10/11)
+The full PDF toolbox for Windows: merge, split, compress, sign, OCR and chat with your documents — no uploads.
 
-### ➡️ [**Descargar PDFLocal (instalador .exe)**](https://github.com/Octonove/pdflocal/releases/latest/download/PDFLocal-Setup.exe)
+**Free · Open source (MIT) · 100% local — nothing ever leaves your PC · No accounts, no limits, no watermarks**
 
-Descarga **directa** del instalador, sin registro. También puedes ver la [última versión y notas](https://github.com/Octonove/pdflocal/releases/latest).
+<img src="docs/screenshot.png" width="720" alt="PDFLocal screenshot">
 
-> Si Windows muestra *"Windows protegió tu PC"* (es normal en programas nuevos sin firma): pulsa **Más información → Ejecutar de todas formas**. Se instala sin permisos de administrador.
+> 🇪🇸 ¿Prefieres leerlo en español? → **[README en español](README.es.md)**
 
----
+## Features
 
-## Funciones
+- Merge, split, reorder and **compress** PDFs
+- **Digital signature** with your own certificate
+- OCR for scanned documents
+- Ask questions about a document with optional **local AI**
+- 100% offline: your files never leave your PC
 
-- **Páginas**: unir PDFs, dividir, extraer/eliminar páginas, rotar, reordenar.
-- **Convertir**: PDF → imágenes, imágenes → PDF.
-- **Comprimir** con 3 niveles (ligera/media/fuerte): remuestrea y recomprime las imágenes — ahorros reales del 80-95% en PDFs escaneados o de diseño; nunca deja el archivo más grande que el original.
-- **Proteger**: cifrar/descifrar con contraseña, marca de agua, sello de imagen.
-- **Firma digital** (PAdES/PKCS#7 con pyHanko): con archivo `.p12/.pfx` o directamente con un **certificado del almacén de Windows** (la clave nunca sale del equipo); verificación de firmas.
-- **Texto**: extraer texto, OCR local.
-- **Chatear con el PDF**: preguntas con citas de página. Con [Ollama](https://ollama.com) (opcional) usa embeddings + LLM local; sin él, búsqueda por palabras.
-- **Metadatos**: ver y editar.
+## Download (Windows 10/11)
 
-## Stack
+### ➡️ [**Download PDFLocal (installer .exe)**](https://github.com/Octonove/pdflocal/releases/latest/download/PDFLocal-Setup.exe)
 
-Python 3 + Tkinter (ttk) · pypdf · PyMuPDF · pyHanko · cryptography · Ollama opcional.
+Direct download, no sign-up. If Windows shows *"Windows protected your PC"* (normal for new unsigned apps): click **More info → Run anyway**. Installs without administrator rights.
 
-Depende del paquete compartido de la suite [`octonove-core`](https://github.com/Octonove/octonove-core) (tema, capa Ollama, config): debe estar en el `sys.path` del entorno (vía `.pth` o copia junto al proyecto).
+> ⭐ **If PDFLocal is useful to you, a star on GitHub is the best way to support it — it costs nothing and helps a lot.**
 
-## Compilar
+## More free local-first tools
 
-```powershell
-.\build\build.ps1              # ejecutable (PyInstaller onedir)
-.\build\build-installer.ps1    # instalador (Inno Setup)
-```
+Every tool in this family follows the same rules: free, open source, and nothing leaves your PC.
 
-## Tests
+| Tool | What it does |
+|---|---|
+| [CapturaPro](https://github.com/Octonove/capturapro) | Screenshots, GIFs and screen recordings for Windows — annotated, watermark-free, 100% local. |
+| [TranscriptorIA](https://github.com/Octonove/transcriptor-ia) | Audio & video to text and .srt subtitles with local Whisper AI — free, private, unlimited. |
+| [CajaPDF](https://github.com/Octonove/cajapdf) | The tiny PDF utility: merge, split and compress — free, offline, no accounts. |
+| [CapturaStudio](https://github.com/Octonove/capturastudio) | An OBS-style recording & streaming studio with local AI superpowers — record, stream, auto-edit. |
+| [GuiaClick](https://github.com/Octonove/guiaclick) | Record your clicks, get a step-by-step guide — annotated screenshots, blur, PDF/HTML export. Like Scribe, but local. |
+| [ActaLocal](https://github.com/Octonove/actalocal) | Meetings → minutes: local Whisper transcription plus AI summary, decisions and action items. |
+| [AutoEscritorio](https://github.com/Octonove/autoescritorio) | Trigger→action automation for Windows: watch folders, hotkeys, USB, clipboard — simple and local. |
+| [BalanceLocal](https://github.com/Octonove/balancelocal) | Your work Wrapped: where your time actually goes, as shareable cards, a PDF report and a mini-video. |
+| [CajaNegra](https://github.com/Octonove/cajanegra) | A dashcam for your PC: the last minutes of your screen, one hotkey away from a perfect incident report. |
+| [FichajeLocal](https://github.com/Octonove/fichajelocal) | A local time-clock kiosk for small business: PIN check-in, tamper-evident records, accountant-ready reports. |
+| [ITVLocal](https://github.com/Octonove/itvlocal) | An MOT-style inspection for your PC: 1–3 minutes, a 0–10 score and a PDF certificate. Inspects, never modifies. |
+| [SonarArchivo](https://github.com/Octonove/sonararchivo) | Find files by what's INSIDE them: local full-text search over your messy folders and old drives. |
 
-```powershell
-python -m pytest tests/ -q
-```
+Also: **[CRBRO](https://github.com/Octonove/crbro-memory)** — persistent neural memory for AI agents (MCP server).
 
-## Licencia
+## License
 
-[MIT](LICENSE) — © 2026 Octonove.
+[MIT](LICENSE) — see also [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) where present.
